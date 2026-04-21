@@ -124,22 +124,10 @@
     <div class="section-label">Activity</div>
     <div class="metrics-grid">
       <div class="metric-card">
-        <label>Calls made</label>
-        <input type="number" id="m-calls" placeholder="0" min="0">
-        <div class="unit">total dials</div>
-        <div class="trend-mini" id="t-calls"></div>
-      </div>
-      <div class="metric-card">
-        <label>Emails sent</label>
-        <input type="number" id="m-emails" placeholder="0" min="0">
-        <div class="unit">total emails</div>
-        <div class="trend-mini" id="t-emails"></div>
-      </div>
-      <div class="metric-card">
-        <label>SMS sent</label>
-        <input type="number" id="m-sms" placeholder="0" min="0">
-        <div class="unit">total texts</div>
-        <div class="trend-mini" id="t-sms"></div>
+        <label>All activity</label>
+        <input type="number" id="m-activity" placeholder="0" min="0">
+        <div class="unit">calls + emails + sms</div>
+        <div class="trend-mini" id="t-activity"></div>
       </div>
       <div class="metric-card">
         <label>Open deals</label>
@@ -173,11 +161,7 @@
     <div class="charts-grid">
       <div class="chart-card">
         <h3>Activity</h3>
-        <div class="chart-legend">
-          <div class="legend-item"><div class="legend-swatch" style="background:#F10606"></div>Calls</div>
-          <div class="legend-item"><div class="legend-swatch" style="background:#3266ad"></div>Emails</div>
-          <div class="legend-item"><div class="legend-swatch" style="background:#2d9c5f"></div>SMS</div>
-        </div>
+
         <div class="chart-wrap"><canvas id="cActivity" role="img" aria-label="Activity trend">Activity trend.</canvas></div>
       </div>
       <div class="chart-card">
@@ -203,8 +187,7 @@
       <table>
         <thead>
           <tr>
-            <th>Rep</th><th>Calls</th><th>Emails</th><th>SMS</th>
-            <th>Open deals</th><th>Discount %</th><th>TS Score</th>
+            <th>Rep</th><th>All activity</th><th>Open deals</th><th>Discount %</th><th>TS Score</th>
           </tr>
         </thead>
         <tbody id="teamBody"></tbody>
@@ -219,7 +202,7 @@ var FB = 'https://kixie-ae-metrics-default-rtdb.firebaseio.com/metrics';
 
 var REPS = ['Alex Engle','Noah Weiss','Tiffany Maqsudi','Brendan Ventimiglia','Dart Radell','Lucas Trumbo','Avi Piekarski','Derick Okpaise'];
 var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-var FIELDS = ['calls','emails','sms','deals','disc','ts'];
+var FIELDS = ['activity','deals','disc','ts'];
 
 var allData = {};
 var selMonth = new Date().getMonth();
@@ -369,9 +352,7 @@ function makeOrUpdate(id, cfg) {
 function renderTrends() {
   var recs = getLast12(selRep);
   var labels = recs.map(function(r) { return r.label; });
-  trendArrow(recs,'calls','t-calls',false);
-  trendArrow(recs,'emails','t-emails',false);
-  trendArrow(recs,'sms','t-sms',false);
+  trendArrow(recs,'activity','t-activity',false);
   trendArrow(recs,'deals','t-deals',false);
   trendArrow(recs,'disc','t-disc',true);
   trendArrow(recs,'ts','t-ts',false);
@@ -385,9 +366,7 @@ function renderTrends() {
   function d(field) { return recs.map(function(r) { return r[field] !== undefined ? r[field] : null; }); }
 
   makeOrUpdate('cActivity', { type:'line', data:{ labels:labels, datasets:[
-    { label:'Calls', data:d('calls'), borderColor:'#F10606', backgroundColor:'rgba(241,6,6,0.07)', tension:0.35, pointRadius:3, spanGaps:true, fill:true },
-    { label:'Emails', data:d('emails'), borderColor:'#3266ad', tension:0.35, pointRadius:3, borderDash:[5,3], spanGaps:true },
-    { label:'SMS', data:d('sms'), borderColor:'#2d9c5f', tension:0.35, pointRadius:3, borderDash:[2,3], spanGaps:true }
+    { label:'All activity', data:d('activity'), borderColor:'#F10606', backgroundColor:'rgba(241,6,6,0.07)', tension:0.35, pointRadius:3, spanGaps:true, fill:true }
   ]}, options:base });
 
   makeOrUpdate('cDeals', { type:'bar', data:{ labels:labels, datasets:[
@@ -430,8 +409,7 @@ function renderTeamTable() {
       return '<td' + (cls ? ' class="'+cls+'"' : '') + '>' + display + '</td>';
     }
     tr.innerHTML = '<td class="rep-name">' + rep + '</td>' +
-      cell('calls',false) + cell('emails',false) + cell('sms',false) +
-      cell('deals',false) + cell('disc',true) + cell('ts',false);
+      cell('activity',false) + cell('deals',false) + cell('disc',true) + cell('ts',false);
     tbody.appendChild(tr);
   });
 }
