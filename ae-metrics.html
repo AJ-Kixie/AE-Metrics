@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AE Team Metrics — Kixie</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --red: #F10606; --red-dark: #c80505;
+      --font: 'DM Sans', sans-serif;
+      --bg: #f7f7f5; --surface: #fff;
+      --border: rgba(0,0,0,0.1); --border-strong: rgba(0,0,0,0.18);
+      --text: #1a1a1a; --text-muted: #6b6b6b; --text-faint: #bbb;
+      --success: #2d9c5f; --warn: #c0392b;
+      --radius: 10px; --radius-sm: 6px;
+    }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 2rem; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    .topbar-left { display: flex; align-items: center; gap: 12px; }
+    .logo { width: 28px; height: 28px; background: var(--red); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+    .logo span { color: #fff; font-weight: 600; font-size: 13px; }
+    .topbar h1 { font-size: 15px; font-weight: 600; }
+    .topbar-right { display: flex; align-items: center; gap: 8px; }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #ccc; transition: background 0.3s; }
+    .status-dot.connected { background: var(--success); }
+    .status-dot.error { background: var(--warn); }
+    .status-label { font-size: 12px; color: var(--text-muted); }
+
+    .main { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+    .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .controls select { font-size: 13px; font-family: var(--font); padding: 7px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); cursor: pointer; outline: none; }
+    .controls select:focus { border-color: var(--red); }
+    .btn { font-size: 13px; font-family: var(--font); font-weight: 500; padding: 7px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); cursor: pointer; }
+    .btn:hover { background: var(--bg); }
+    .btn.primary { background: var(--red); color: #fff; border-color: var(--red); }
+    .btn.primary:hover { background: var(--red-dark); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .saved-msg { font-size: 12px; color: var(--success); font-weight: 500; display: none; }
+
+    .view-toggle { display: flex; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 1.5rem; width: fit-content; }
+    .view-btn { font-size: 12px; font-family: var(--font); font-weight: 500; padding: 6px 16px; background: transparent; border: none; color: var(--text-muted); cursor: pointer; }
+    .view-btn.active { background: var(--text); color: #fff; }
+
+    .rep-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .rep-tab { font-size: 12px; font-family: var(--font); font-weight: 500; padding: 5px 14px; border-radius: 99px; border: 1px solid var(--border-strong); background: transparent; color: var(--text-muted); cursor: pointer; white-space: nowrap; }
+    .rep-tab:hover { background: var(--bg); color: var(--text); }
+    .rep-tab.active { background: var(--red); color: #fff; border-color: var(--red); }
+    .rep-tab.has-data { color: var(--text); }
+    .rep-tab.has-data::after { content: ''; display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--success); margin-left: 6px; vertical-align: middle; }
+    .rep-tab.active.has-data::after { background: rgba(255,255,255,0.7); }
+
+    .section-label { font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 12px; }
+
+    .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 10px; margin-bottom: 1.25rem; }
+    .metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+    .metric-card:focus-within { border-color: var(--red); }
+    .metric-card label { display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.04em; margin-bottom: 6px; text-transform: uppercase; }
+    .metric-card input { width: 100%; font-size: 22px; font-weight: 500; font-family: var(--font); color: var(--text); border: none; background: transparent; outline: none; }
+    .metric-card input::placeholder { color: var(--text-faint); }
+    .metric-card .unit { font-size: 11px; color: var(--text-faint); margin-top: 3px; }
+    .metric-card .trend-mini { margin-top: 8px; font-size: 11px; min-height: 15px; }
+    .trend-up { color: var(--success); }
+    .trend-down { color: var(--warn); }
+    .trend-flat { color: var(--text-faint); }
+
+    hr { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 1.5rem; }
+    @media (max-width: 580px) { .charts-grid { grid-template-columns: 1fr; } }
+    .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+    .chart-card h3 { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+    .chart-wrap { position: relative; height: 155px; }
+    .chart-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-muted); }
+    .legend-swatch { width: 10px; height: 3px; border-radius: 2px; }
+
+    .team-table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 520px; }
+    thead th { font-size: 11px; font-weight: 600; color: var(--text-muted); text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; text-transform: uppercase; letter-spacing: 0.06em; }
+    tbody td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--bg); }
+    td.rep-name { font-weight: 500; }
+    td.empty { color: var(--text-faint); }
+    td.best { color: var(--success); font-weight: 600; }
+    td.worst-disc { color: var(--warn); font-weight: 600; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo"><span>K</span></div>
+    <h1>AE Team Metrics</h1>
+  </div>
+  <div class="topbar-right">
+    <div class="status-dot" id="statusDot"></div>
+    <span class="status-label" id="statusLabel">Connecting...</span>
+  </div>
+</div>
+
+<div class="main">
+  <div class="controls">
+    <select id="monthSel"></select>
+    <select id="yearSel"></select>
+    <button class="btn primary" id="saveBtn" onclick="saveMonth()">Save month</button>
+    <span class="saved-msg" id="savedMsg">Saved</span>
+  </div>
+
+  <div class="view-toggle">
+    <button class="view-btn active" id="vbRep" onclick="switchView('rep')">Rep view</button>
+    <button class="view-btn" id="vbTeam" onclick="switchView('team')">Team snapshot</button>
+  </div>
+
+  <div id="repView">
+    <div class="rep-tabs" id="repTabs"></div>
+
+    <div class="section-label">Activity</div>
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <label>Calls made</label>
+        <input type="number" id="m-calls" placeholder="0" min="0">
+        <div class="unit">total dials</div>
+        <div class="trend-mini" id="t-calls"></div>
+      </div>
+      <div class="metric-card">
+        <label>Emails sent</label>
+        <input type="number" id="m-emails" placeholder="0" min="0">
+        <div class="unit">total emails</div>
+        <div class="trend-mini" id="t-emails"></div>
+      </div>
+      <div class="metric-card">
+        <label>SMS sent</label>
+        <input type="number" id="m-sms" placeholder="0" min="0">
+        <div class="unit">total texts</div>
+        <div class="trend-mini" id="t-sms"></div>
+      </div>
+      <div class="metric-card">
+        <label>Open deals</label>
+        <input type="number" id="m-deals" placeholder="0" min="0">
+        <div class="unit">active pipeline</div>
+        <div class="trend-mini" id="t-deals"></div>
+      </div>
+    </div>
+
+    <div class="section-label">Quality</div>
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <label>Avg discount %</label>
+        <input type="number" id="m-disc" placeholder="0" min="0" max="100" step="0.1">
+        <div class="unit">percent off list</div>
+        <div class="trend-mini" id="t-disc"></div>
+      </div>
+      <div class="metric-card">
+        <label>Triple session score</label>
+        <input type="number" id="m-ts" placeholder="0" min="0" max="100" step="0.1">
+        <div class="unit">avg call score / 100</div>
+        <div class="trend-mini" id="t-ts"></div>
+      </div>
+    </div>
+
+    <hr>
+    <div class="section-label" style="margin-bottom:14px">
+      12-month trends &mdash; <span id="repTrendLabel" style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-faint)"></span>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>Activity</h3>
+        <div class="chart-legend">
+          <div class="legend-item"><div class="legend-swatch" style="background:#F10606"></div>Calls</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#3266ad"></div>Emails</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#2d9c5f"></div>SMS</div>
+        </div>
+        <div class="chart-wrap"><canvas id="cActivity" role="img" aria-label="Activity trend">Activity trend.</canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Open deals</h3>
+        <div class="chart-wrap"><canvas id="cDeals" role="img" aria-label="Open deals trend">Deals trend.</canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Avg discount %</h3>
+        <div class="chart-wrap"><canvas id="cDisc" role="img" aria-label="Discount trend">Discount trend.</canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Triple session score</h3>
+        <div class="chart-wrap"><canvas id="cTs" role="img" aria-label="Call score trend">Score trend.</canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="teamView" class="hidden">
+    <div class="section-label" style="margin-bottom:12px">
+      All reps &mdash; <span id="teamMonthLabel" style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-faint)"></span>
+    </div>
+    <div class="team-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Rep</th><th>Calls</th><th>Emails</th><th>SMS</th>
+            <th>Open deals</th><th>Discount %</th><th>TS Score</th>
+          </tr>
+        </thead>
+        <tbody id="teamBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+var FB = 'https://kixie-ae-metrics-default-rtdb.firebaseio.com/metrics';
+
+var REPS = ['Alex Engle','Noah Weiss','Tiffany Maqsudi','Brendan Ventimiglia','Dart Radell','Lucas Trumbo','Avi Piekarski','Derick Okpaise'];
+var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+var FIELDS = ['calls','emails','sms','deals','disc','ts'];
+
+var allData = {};
+var selMonth = new Date().getMonth();
+var selYear = new Date().getFullYear();
+var selRep = REPS[0];
+var curView = 'rep';
+var charts = {};
+
+function setStatus(s) {
+  var dot = document.getElementById('statusDot');
+  var lbl = document.getElementById('statusLabel');
+  dot.className = 'status-dot' + (s === 'ok' ? ' connected' : s === 'err' ? ' error' : '');
+  lbl.textContent = s === 'ok' ? 'Connected' : s === 'err' ? 'Connection error' : 'Connecting...';
+}
+
+function safeKey(rep) { return rep.replace(/[^a-zA-Z0-9]/g, '_'); }
+function fbKey(rep, m, y) { return safeKey(rep) + '__' + y + '-' + (m < 10 ? '0' : '') + m; }
+
+function loadAllData() {
+  setStatus('connecting');
+  fetch(FB + '.json')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      allData = data || {};
+      setStatus('ok');
+      buildUI();
+    })
+    .catch(function(e) {
+      console.error(e);
+      setStatus('err');
+      allData = {};
+      buildUI();
+    });
+}
+
+function saveMonth() {
+  var k = fbKey(selRep, selMonth, selYear);
+  var rec = {};
+  FIELDS.forEach(function(f) {
+    var el = document.getElementById('m-' + f);
+    if (el && el.value !== '') rec[f] = parseFloat(el.value);
+  });
+  allData[k] = rec;
+  var btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  fetch(FB + '/' + k + '.json', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(rec) })
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      setStatus('ok');
+      var msg = document.getElementById('savedMsg');
+      msg.style.display = 'inline';
+      setTimeout(function() { msg.style.display = 'none'; }, 2200);
+    })
+    .catch(function(e) { console.error(e); setStatus('err'); })
+    .finally(function() {
+      btn.disabled = false;
+      btn.textContent = 'Save month';
+      buildRepTabs();
+      renderTrends();
+      renderTeamTable();
+    });
+}
+
+function buildMonthYearSelects() {
+  var ms = document.getElementById('monthSel');
+  var ys = document.getElementById('yearSel');
+  ms.innerHTML = ''; ys.innerHTML = '';
+  MONTHS.forEach(function(m, i) {
+    var o = document.createElement('option');
+    o.value = i; o.textContent = m; if (i === selMonth) o.selected = true;
+    ms.appendChild(o);
+  });
+  var nowY = new Date().getFullYear();
+  for (var y = nowY - 3; y <= nowY + 1; y++) {
+    var o = document.createElement('option');
+    o.value = y; o.textContent = y; if (y === selYear) o.selected = true;
+    ys.appendChild(o);
+  }
+  ms.onchange = function() { selMonth = parseInt(ms.value, 10); loadMonth(); renderTeamTable(); };
+  ys.onchange = function() { selYear = parseInt(ys.value, 10); loadMonth(); renderTeamTable(); };
+}
+
+function buildRepTabs() {
+  var container = document.getElementById('repTabs');
+  container.innerHTML = '';
+  REPS.forEach(function(rep) {
+    var sk = safeKey(rep);
+    var hasAny = Object.keys(allData).some(function(k) { return k.indexOf(sk + '__') === 0; });
+    var btn = document.createElement('button');
+    btn.className = 'rep-tab' + (rep === selRep ? ' active' : '') + (hasAny ? ' has-data' : '');
+    btn.textContent = rep.split(' ')[0];
+    btn.title = rep;
+    btn.onclick = (function(r) { return function() { selRep = r; buildRepTabs(); loadMonth(); }; })(rep);
+    container.appendChild(btn);
+  });
+  document.getElementById('repTrendLabel').textContent = selRep;
+}
+
+function loadMonth() {
+  var k = fbKey(selRep, selMonth, selYear);
+  var rec = allData[k] || {};
+  FIELDS.forEach(function(f) {
+    var el = document.getElementById('m-' + f);
+    if (el) el.value = rec[f] !== undefined ? rec[f] : '';
+  });
+  renderTrends();
+}
+
+function getLast12(rep) {
+  var slots = [], m = selMonth, y = selYear;
+  for (var i = 0; i < 12; i++) {
+    var k = fbKey(rep, m, y);
+    var rec = allData[k] || {};
+    var entry = { label: MONTHS[m].slice(0,3) + ' ' + String(y).slice(2) };
+    FIELDS.forEach(function(f) { if (rec[f] !== undefined) entry[f] = rec[f]; });
+    slots.unshift(entry);
+    m--; if (m < 0) { m = 11; y--; }
+  }
+  return slots;
+}
+
+function trendArrow(recs, field, elId, lowerBetter) {
+  var el = document.getElementById(elId);
+  if (!el) return;
+  var filled = recs.filter(function(r) { return r[field] !== undefined; });
+  if (filled.length < 2) { el.innerHTML = ''; return; }
+  var last = filled[filled.length-1][field], prev = filled[filled.length-2][field];
+  var diff = last - prev;
+  var pct = prev !== 0 ? Math.round(Math.abs(diff/prev)*100) : 0;
+  var cls, arrow;
+  if (Math.abs(diff) < 0.01) { cls = 'trend-flat'; arrow = '&#8212;'; }
+  else if (diff > 0) { cls = lowerBetter ? 'trend-down' : 'trend-up'; arrow = '&#9650;'; }
+  else { cls = lowerBetter ? 'trend-up' : 'trend-down'; arrow = '&#9660;'; }
+  el.innerHTML = '<span class="' + cls + '">' + arrow + ' ' + pct + '% vs prior month</span>';
+}
+
+function makeOrUpdate(id, cfg) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+  var canvas = document.getElementById(id);
+  if (!canvas) return;
+  charts[id] = new Chart(canvas.getContext('2d'), cfg);
+}
+
+function renderTrends() {
+  var recs = getLast12(selRep);
+  var labels = recs.map(function(r) { return r.label; });
+  trendArrow(recs,'calls','t-calls',false);
+  trendArrow(recs,'emails','t-emails',false);
+  trendArrow(recs,'sms','t-sms',false);
+  trendArrow(recs,'deals','t-deals',false);
+  trendArrow(recs,'disc','t-disc',true);
+  trendArrow(recs,'ts','t-ts',false);
+
+  var gc = 'rgba(0,0,0,0.06)', tc = '#aaa';
+  var xAxis = { ticks: { color:tc, font:{size:9}, maxRotation:45, autoSkip:false }, grid:{color:gc} };
+  var yAxis = { ticks: { color:tc, font:{size:9} }, grid:{color:gc}, beginAtZero:true };
+  var plugins = { legend:{ display:false } };
+  var base = { responsive:true, maintainAspectRatio:false, plugins:plugins, scales:{ x:xAxis, y:yAxis } };
+
+  function d(field) { return recs.map(function(r) { return r[field] !== undefined ? r[field] : null; }); }
+
+  makeOrUpdate('cActivity', { type:'line', data:{ labels:labels, datasets:[
+    { label:'Calls', data:d('calls'), borderColor:'#F10606', backgroundColor:'rgba(241,6,6,0.07)', tension:0.35, pointRadius:3, spanGaps:true, fill:true },
+    { label:'Emails', data:d('emails'), borderColor:'#3266ad', tension:0.35, pointRadius:3, borderDash:[5,3], spanGaps:true },
+    { label:'SMS', data:d('sms'), borderColor:'#2d9c5f', tension:0.35, pointRadius:3, borderDash:[2,3], spanGaps:true }
+  ]}, options:base });
+
+  makeOrUpdate('cDeals', { type:'bar', data:{ labels:labels, datasets:[
+    { label:'Deals', data:d('deals'), backgroundColor:'rgba(241,6,6,0.75)', borderRadius:3 }
+  ]}, options:base });
+
+  makeOrUpdate('cDisc', { type:'line', data:{ labels:labels, datasets:[
+    { label:'Discount %', data:d('disc'), borderColor:'#BA7517', backgroundColor:'rgba(186,117,23,0.08)', tension:0.35, pointRadius:3, fill:true, spanGaps:true }
+  ]}, options:{ responsive:true, maintainAspectRatio:false, plugins:plugins, scales:{ x:xAxis, y:{ ticks:{ color:tc, font:{size:9}, callback:function(v){return v+'%';} }, grid:{color:gc}, beginAtZero:true } } } });
+
+  makeOrUpdate('cTs', { type:'line', data:{ labels:labels, datasets:[
+    { label:'TS Score', data:d('ts'), borderColor:'#534AB7', backgroundColor:'rgba(83,74,183,0.08)', tension:0.35, pointRadius:3, fill:true, spanGaps:true }
+  ]}, options:{ responsive:true, maintainAspectRatio:false, plugins:plugins, scales:{ x:xAxis, y:{ ticks:{color:tc,font:{size:9}}, grid:{color:gc}, min:0, max:100 } } } });
+}
+
+function renderTeamTable() {
+  document.getElementById('teamMonthLabel').textContent = MONTHS[selMonth] + ' ' + selYear;
+  var tbody = document.getElementById('teamBody');
+  tbody.innerHTML = '';
+  var vals = {};
+  FIELDS.forEach(function(f) { vals[f] = []; });
+  REPS.forEach(function(rep) {
+    var rec = allData[fbKey(rep, selMonth, selYear)] || {};
+    FIELDS.forEach(function(f) { if (rec[f] !== undefined) vals[f].push(rec[f]); });
+  });
+  var best = {};
+  FIELDS.forEach(function(f) {
+    if (!vals[f].length) { best[f] = null; return; }
+    best[f] = f === 'disc' ? Math.min.apply(null, vals[f]) : Math.max.apply(null, vals[f]);
+  });
+  REPS.forEach(function(rep) {
+    var rec = allData[fbKey(rep, selMonth, selYear)] || {};
+    var tr = document.createElement('tr');
+    function cell(f, isDisc) {
+      var v = rec[f];
+      if (v === undefined) return '<td class="empty">&#8212;</td>';
+      var display = isDisc ? parseFloat(v).toFixed(1) + '%' : Math.round(v).toLocaleString();
+      var isBest = v === best[f];
+      var cls = isBest ? (isDisc ? 'worst-disc' : 'best') : '';
+      return '<td' + (cls ? ' class="'+cls+'"' : '') + '>' + display + '</td>';
+    }
+    tr.innerHTML = '<td class="rep-name">' + rep + '</td>' +
+      cell('calls',false) + cell('emails',false) + cell('sms',false) +
+      cell('deals',false) + cell('disc',true) + cell('ts',false);
+    tbody.appendChild(tr);
+  });
+}
+
+function switchView(v) {
+  curView = v;
+  document.getElementById('repView').classList.toggle('hidden', v !== 'rep');
+  document.getElementById('teamView').classList.toggle('hidden', v !== 'team');
+  document.getElementById('vbRep').classList.toggle('active', v === 'rep');
+  document.getElementById('vbTeam').classList.toggle('active', v === 'team');
+  if (v === 'team') renderTeamTable();
+}
+
+function buildUI() {
+  buildMonthYearSelects();
+  buildRepTabs();
+  loadMonth();
+  renderTeamTable();
+}
+
+loadAllData();
+</script>
+</body>
+</html>
