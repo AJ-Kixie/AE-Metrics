@@ -330,14 +330,16 @@ function loadMonth() {
 }
 
 function getLast12(rep) {
-  var slots = [], m = selMonth, y = selYear;
-  for (var i = 0; i < 12; i++) {
+  var slots = [];
+  var startM = 2, startY = 2026; // March 2026
+  var m = startM, y = startY;
+  while (y < selYear || (y === selYear && m <= selMonth)) {
     var k = fbKey(rep, m, y);
     var rec = allData[k] || {};
     var entry = { label: MONTHS[m].slice(0,3) + ' ' + String(y).slice(2) };
     FIELDS.forEach(function(f) { if (rec[f] !== undefined) entry[f] = rec[f]; });
-    slots.unshift(entry);
-    m--; if (m < 0) { m = 11; y--; }
+    slots.push(entry);
+    m++; if (m > 11) { m = 0; y++; }
   }
   return slots;
 }
