@@ -87,8 +87,8 @@
     tbody tr:hover td { background: var(--bg); }
     td.rep-name { font-weight: 500; }
     td.empty { color: var(--text-faint); }
-    td.best { color: var(--success); font-weight: 600; }
-    td.worst-disc { color: var(--warn); font-weight: 600; }
+    td.highlight-good { color: var(--success); font-weight: 600; }
+    td.highlight-bad { color: var(--warn); font-weight: 600; }
     .hidden { display: none !important; }
   </style>
 </head>
@@ -400,16 +400,18 @@ function renderTeamTable() {
   REPS.forEach(function(rep) {
     var rec = allData[fbKey(rep, selMonth, selYear)] || {};
     var tr = document.createElement('tr');
-    function cell(f, isDisc) {
+    function cell(f, isDisc, isDeals) {
       var v = rec[f];
       if (v === undefined) return '<td class="empty">&#8212;</td>';
       var display = isDisc ? parseFloat(v).toFixed(1) + '%' : Math.round(v).toLocaleString();
-      var isBest = v === best[f];
-      var cls = isBest ? (isDisc ? 'worst-disc' : 'best') : '';
+      var cls = '';
+      if (isDisc && v === best[f]) cls = 'highlight-good';
+      else if (isDeals && v === best[f]) cls = 'highlight-bad';
+      else if (!isDisc && !isDeals && v === best[f]) cls = 'highlight-good';
       return '<td' + (cls ? ' class="'+cls+'"' : '') + '>' + display + '</td>';
     }
     tr.innerHTML = '<td class="rep-name">' + rep + '</td>' +
-      cell('activity',false) + cell('deals',false) + cell('disc',true) + cell('ts',false);
+      cell('activity',false,false) + cell('deals',false,true) + cell('disc',true,false) + cell('ts',false,false);
     tbody.appendChild(tr);
   });
 }
