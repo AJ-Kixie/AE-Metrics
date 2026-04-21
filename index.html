@@ -327,19 +327,19 @@ function getLast12(rep) {
   return slots;
 }
 
-function trendArrow(recs, field, elId, lowerBetter) {
+function trendArrow(recs, field, elId, lowerBetter, pointDiff) {
   var el = document.getElementById(elId);
   if (!el) return;
   var filled = recs.filter(function(r) { return r[field] !== undefined; });
   if (filled.length < 2) { el.innerHTML = ''; return; }
   var last = filled[filled.length-1][field], prev = filled[filled.length-2][field];
   var diff = last - prev;
-  var pct = prev !== 0 ? Math.round(Math.abs(diff/prev)*100) : 0;
+  var display = pointDiff ? (Math.abs(diff) % 1 === 0 ? Math.round(Math.abs(diff)) : Math.abs(diff).toFixed(1)) + '% vs prior month' : (prev !== 0 ? Math.round(Math.abs(diff/prev)*100) : 0) + '% vs prior month';
   var cls, arrow;
   if (Math.abs(diff) < 0.01) { cls = 'trend-flat'; arrow = '&#8212;'; }
   else if (diff > 0) { cls = lowerBetter ? 'trend-down' : 'trend-up'; arrow = '&#9650;'; }
   else { cls = lowerBetter ? 'trend-up' : 'trend-down'; arrow = '&#9660;'; }
-  el.innerHTML = '<span class="' + cls + '">' + arrow + ' ' + pct + '% vs prior month</span>';
+  el.innerHTML = '<span class="' + cls + '">' + arrow + ' ' + display + '</span>';
 }
 
 function makeOrUpdate(id, cfg) {
@@ -354,7 +354,7 @@ function renderTrends() {
   var labels = recs.map(function(r) { return r.label; });
   trendArrow(recs,'activity','t-activity',false);
   trendArrow(recs,'deals','t-deals',false);
-  trendArrow(recs,'disc','t-disc',true);
+  trendArrow(recs,'disc','t-disc',true,true);
   trendArrow(recs,'ts','t-ts',false);
 
   var gc = 'rgba(0,0,0,0.06)', tc = '#aaa';
