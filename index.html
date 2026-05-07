@@ -353,7 +353,7 @@ function renderTrends() {
   var recs = getLast12(selRep);
   var labels = recs.map(function(r) { return r.label; });
   trendArrow(recs,'activity','t-activity',false);
-  trendArrow(recs,'deals','t-deals',false);
+  trendArrow(recs,'deals','t-deals',true);
   trendArrow(recs,'disc','t-disc',true,true);
   trendArrow(recs,'ts','t-ts',false);
 
