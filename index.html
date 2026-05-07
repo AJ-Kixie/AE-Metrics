@@ -90,6 +90,16 @@
     td.highlight-good { color: var(--success); font-weight: 600; }
     td.highlight-bad { color: var(--warn); font-weight: 600; }
     .hidden { display: none !important; }
+    .avg-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+    .avg-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+    .avg-card .avg-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+    .avg-card .avg-val { font-size: 26px; font-weight: 600; color: var(--text); }
+    .avg-card .avg-trend { font-size: 11px; margin-top: 6px; min-height: 15px; }
+    tr.avg-row td { font-weight: 600; color: var(--text-muted); background: var(--bg); border-top: 1px solid var(--border-strong); font-size: 12px; }
+    tr.avg-row td.avg-good { color: var(--success); }
+    tr.avg-row td.avg-bad { color: var(--warn); }
+    .team-charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 1.5rem; margin-bottom: 1.5rem; }
+    @media (max-width: 580px) { .team-charts-grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -181,8 +191,32 @@
 
   <div id="teamView" class="hidden">
     <div class="section-label" style="margin-bottom:12px">
-      All reps &mdash; <span id="teamMonthLabel" style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-faint)"></span>
+      Team averages &mdash; <span id="teamMonthLabel" style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-faint)"></span>
     </div>
+    <div class="avg-cards">
+      <div class="avg-card">
+        <div class="avg-label">Avg activity</div>
+        <div class="avg-val" id="avg-activity">—</div>
+        <div class="avg-trend" id="avgtrend-activity"></div>
+      </div>
+      <div class="avg-card">
+        <div class="avg-label">Avg open deals</div>
+        <div class="avg-val" id="avg-deals">—</div>
+        <div class="avg-trend" id="avgtrend-deals"></div>
+      </div>
+      <div class="avg-card">
+        <div class="avg-label">Avg discount % (annual prepays)</div>
+        <div class="avg-val" id="avg-disc">—</div>
+        <div class="avg-trend" id="avgtrend-disc"></div>
+      </div>
+      <div class="avg-card">
+        <div class="avg-label">Avg TS score</div>
+        <div class="avg-val" id="avg-ts">—</div>
+        <div class="avg-trend" id="avgtrend-ts"></div>
+      </div>
+    </div>
+
+    <div class="section-label" style="margin-bottom:12px">All reps</div>
     <div class="team-table-wrap">
       <table>
         <thead>
@@ -192,6 +226,26 @@
         </thead>
         <tbody id="teamBody"></tbody>
       </table>
+    </div>
+
+    <div class="section-label" style="margin-bottom:14px; margin-top:1.5rem">Team avg trends</div>
+    <div class="team-charts-grid">
+      <div class="chart-card">
+        <h3>Avg activity</h3>
+        <div class="chart-wrap"><canvas id="tcActivity" role="img" aria-label="Team avg activity trend">Team activity trend.</canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Avg open deals</h3>
+        <div class="chart-wrap"><canvas id="tcDeals" role="img" aria-label="Team avg open deals trend">Team deals trend.</canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Avg discount % (annual prepays)</h3>
+        <div class="chart-wrap"><canvas id="tcDisc" role="img" aria-label="Team avg discount trend">Team discount trend.</canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Avg TS score</h3>
+        <div class="chart-wrap"><canvas id="tcTs" role="img" aria-label="Team avg TS score trend">Team score trend.</canvas></div>
+      </div>
     </div>
   </div>
 </div>
@@ -382,6 +436,39 @@ function renderTrends() {
   ]}, options:{ responsive:true, maintainAspectRatio:false, plugins:plugins, scales:{ x:xAxis, y:{ ticks:{color:tc,font:{size:9}}, grid:{color:gc}, min:0, max:100 } } } });
 }
 
+function getTeamAvg(f, m, y) {
+  var vals = [];
+  REPS.forEach(function(rep) {
+    var rec = allData[fbKey(rep, m, y)] || {};
+    if (rec[f] !== undefined) vals.push(rec[f]);
+  });
+  if (!vals.length) return null;
+  return vals.reduce(function(a,b){return a+b;},0) / vals.length;
+}
+
+function getTeamSlots() {
+  var slots = [], m = 2, y = 2026;
+  while (y < selYear || (y === selYear && m <= selMonth)) {
+    slots.push({ m: m, y: y, label: MONTHS[m].slice(0,3) + ' ' + String(y).slice(2) });
+    m++; if (m > 11) { m = 0; y++; }
+  }
+  return slots;
+}
+
+function avgTrendArrow(elId, curr, prev, lowerBetter, pointDiff) {
+  var el = document.getElementById(elId);
+  if (!el) return;
+  if (curr === null || prev === null) { el.innerHTML = ''; return; }
+  var diff = curr - prev;
+  if (Math.abs(diff) < 0.01) { el.innerHTML = '<span style="color:var(--text-faint)">&#8212; no change</span>'; return; }
+  var display = pointDiff ? Math.abs(diff).toFixed(1) + '% vs prior month' : Math.round(Math.abs(diff/prev)*100) + '% vs prior month';
+  var goingUp = diff > 0;
+  var isGood = lowerBetter ? !goingUp : goingUp;
+  var color = isGood ? 'var(--success)' : 'var(--warn)';
+  var arrow = goingUp ? '&#9650;' : '&#9660;';
+  el.innerHTML = '<span style="color:' + color + '">' + arrow + ' ' + display + '</span>';
+}
+
 function renderTeamTable() {
   document.getElementById('teamMonthLabel').textContent = MONTHS[selMonth] + ' ' + selYear;
   var tbody = document.getElementById('teamBody');
@@ -397,6 +484,8 @@ function renderTeamTable() {
     if (!vals[f].length) { best[f] = null; return; }
     best[f] = f === 'disc' ? Math.min.apply(null, vals[f]) : Math.max.apply(null, vals[f]);
   });
+
+  // Rep rows
   REPS.forEach(function(rep) {
     var rec = allData[fbKey(rep, selMonth, selYear)] || {};
     var tr = document.createElement('tr');
@@ -414,6 +503,67 @@ function renderTeamTable() {
       cell('activity',false,false) + cell('deals',false,true) + cell('disc',true,false) + cell('ts',false,false);
     tbody.appendChild(tr);
   });
+
+  // Team avg row
+  var avgs = {};
+  FIELDS.forEach(function(f) { avgs[f] = vals[f].length ? vals[f].reduce(function(a,b){return a+b;},0)/vals[f].length : null; });
+  var avgTr = document.createElement('tr');
+  avgTr.className = 'avg-row';
+  function avgCell(f, isDisc, isDeals) {
+    var v = avgs[f];
+    if (v === null) return '<td>&#8212;</td>';
+    var display = isDisc ? v.toFixed(1) + '%' : Math.round(v).toLocaleString();
+    return '<td>' + display + '</td>';
+  }
+  avgTr.innerHTML = '<td>Team avg</td>' +
+    avgCell('activity',false,false) + avgCell('deals',false,true) + avgCell('disc',true,false) + avgCell('ts',false,false);
+  tbody.appendChild(avgTr);
+
+  // Avg summary cards
+  var prevM = selMonth - 1, prevY = selYear;
+  if (prevM < 0) { prevM = 11; prevY--; }
+  FIELDS.forEach(function(f) {
+    var curr = getTeamAvg(f, selMonth, selYear);
+    var prev = getTeamAvg(f, prevM, prevY);
+    var el = document.getElementById('avg-' + f);
+    if (el) {
+      if (curr === null) { el.textContent = '—'; }
+      else if (f === 'disc') { el.textContent = curr.toFixed(1) + '%'; }
+      else if (f === 'ts') { el.textContent = curr.toFixed(1); }
+      else { el.textContent = Math.round(curr).toLocaleString(); }
+    }
+    avgTrendArrow('avgtrend-' + f, curr, prev, f === 'disc' || f === 'deals', f === 'disc');
+  });
+
+  // Team trend charts
+  var slots = getTeamSlots();
+  var labels = slots.map(function(s) { return s.label; });
+  var gc = 'rgba(0,0,0,0.06)', tc = '#aaa';
+  var xAxis = { ticks: { color:tc, font:{size:9}, maxRotation:45, autoSkip:false }, grid:{color:gc} };
+  var plugins = { legend:{ display:false } };
+
+  function teamData(f) {
+    return slots.map(function(s) {
+      var v = getTeamAvg(f, s.m, s.y);
+      return v !== null ? v : null;
+    });
+  }
+
+  makeOrUpdate('tcActivity', { type:'line', data:{ labels:labels, datasets:[
+    { label:'Avg activity', data:teamData('activity'), borderColor:'#F10606', backgroundColor:'rgba(241,6,6,0.07)', tension:0.35, pointRadius:3, spanGaps:true, fill:true }
+  ]}, options:{ responsive:true, maintainAspectRatio:false, plugins:plugins, scales:{ x:xAxis, y:{ ticks:{color:tc,font:{size:9}}, grid:{color:gc}, beginAtZero:true } } } });
+
+  makeOrUpdate('tcDeals', { type:'line', data:{ labels:labels, datasets:[
+    { label:'Avg open deals', data:teamData('deals'), borderColor:'#c0392b', backgroundColor:'rgba(192,57,43,0.07)', tension:0.35, pointRadius:3, spanGaps:true, fill:true }
+  ]}, options:{ responsive:true, maintainAspectRatio:false, plugins:plugins, scales:{ x:xAxis, y:{ ticks:{color:tc,font:{size:9}}, grid:{color:gc}, beginAtZero:true } } } });
+
+  makeOrUpdate('tcDisc', { type:'line', data:{ labels:labels, datasets:[
+    { label:'Avg discount %', data:teamData('disc'), borderColor:'#BA7517', backgroundColor:'rgba(186,117,23,0.08)', tension:0.35, pointRadius:3, fill:true, spanGaps:true }
+  ]}, options:{ responsive:true, maintainAspectRatio:false, plugins:plugins, scales:{ x:xAxis, y:{ ticks:{ color:tc, font:{size:9}, callback:function(v){return v+'%';} }, grid:{color:gc}, beginAtZero:true } } } });
+
+  makeOrUpdate('tcTs', { type:'line', data:{ labels:labels, datasets:[
+    { label:'Avg TS score', data:teamData('ts'), borderColor:'#534AB7', backgroundColor:'rgba(83,74,183,0.08)', tension:0.35, pointRadius:3, fill:true, spanGaps:true }
+  ]}, options:{ responsive:true, maintainAspectRatio:false, plugins:plugins, scales:{ x:xAxis, y:{ ticks:{color:tc,font:{size:9}}, grid:{color:gc}, min:0, max:100 } } } });
 }
 
 function switchView(v) {
