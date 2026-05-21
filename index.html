@@ -90,6 +90,18 @@
     td.highlight-good { color: var(--success); font-weight: 600; }
     td.highlight-bad { color: var(--warn); font-weight: 600; }
     .hidden { display: none !important; }
+    .lock-btn { background: none; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 5px 10px; cursor: pointer; font-size: 12px; font-family: var(--font); color: var(--text-muted); display: flex; align-items: center; gap: 5px; }
+    .lock-btn:hover { background: var(--bg); }
+    .lock-btn.unlocked { color: var(--success); border-color: var(--success); }
+    .readonly-banner { background: #fff8e1; border: 1px solid #f0c040; border-radius: var(--radius-sm); padding: 8px 14px; font-size: 12px; color: #7a5c00; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 8px; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+    .modal { background: var(--surface); border-radius: var(--radius); padding: 28px; width: 320px; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+    .modal h2 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+    .modal p { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+    .modal input[type=password] { width: 100%; font-size: 15px; font-family: var(--font); padding: 8px 12px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); outline: none; margin-bottom: 10px; }
+    .modal input[type=password]:focus { border-color: var(--red); }
+    .modal-error { font-size: 12px; color: var(--warn); margin-bottom: 10px; min-height: 16px; }
+    .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
     .avg-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
     .avg-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
     .avg-card .avg-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
@@ -112,11 +124,29 @@
   <div class="topbar-right">
     <div class="status-dot" id="statusDot"></div>
     <span class="status-label" id="statusLabel">Connecting...</span>
+    <button class="lock-btn" id="lockBtn" onclick="handleLockClick()">&#128274; Manager login</button>
+  </div>
+</div>
+
+<!-- Password modal -->
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal">
+    <h2>Manager login</h2>
+    <p>Enter the manager password to enable editing.</p>
+    <input type="password" id="pwInput" placeholder="Password" onkeydown="if(event.key==='Enter')submitPassword()">
+    <div class="modal-error" id="pwError"></div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="submitPassword()">Unlock</button>
+    </div>
   </div>
 </div>
 
 <div class="main">
-  <div class="controls">
+  <div class="readonly-banner hidden" id="readonlyBanner">
+    &#128274; View only — log in as manager to edit
+  </div>
+  <div class="controls" id="controlsBar">
     <select id="monthSel"></select>
     <select id="yearSel"></select>
     <button class="btn primary" id="saveBtn" onclick="saveMonth()">Save month</button>
@@ -264,6 +294,8 @@ var selYear = new Date().getFullYear();
 var selRep = REPS[0];
 var curView = 'rep';
 var charts = {};
+var isUnlocked = false;
+var MANAGER_PASSWORD = 'Kixie2026';
 
 function setStatus(s) {
   var dot = document.getElementById('statusDot');
@@ -580,6 +612,52 @@ function buildUI() {
   buildRepTabs();
   loadMonth();
   renderTeamTable();
+  applyMode();
+}
+
+function applyMode() {
+  var inputs = document.querySelectorAll('.metric-card input');
+  inputs.forEach(function(inp) { inp.disabled = !isUnlocked; inp.style.cursor = isUnlocked ? '' : 'default'; });
+  document.getElementById('saveBtn').style.display = isUnlocked ? 'inline-block' : 'none';
+  document.getElementById('savedMsg').style.display = 'none';
+  document.getElementById('readonlyBanner').classList.toggle('hidden', isUnlocked);
+  var lockBtn = document.getElementById('lockBtn');
+  if (isUnlocked) {
+    lockBtn.innerHTML = '&#128275; Locked in';
+    lockBtn.classList.add('unlocked');
+  } else {
+    lockBtn.innerHTML = '&#128274; Manager login';
+    lockBtn.classList.remove('unlocked');
+  }
+}
+
+function handleLockClick() {
+  if (isUnlocked) {
+    isUnlocked = false;
+    applyMode();
+  } else {
+    document.getElementById('pwInput').value = '';
+    document.getElementById('pwError').textContent = '';
+    document.getElementById('modalOverlay').classList.remove('hidden');
+    setTimeout(function() { document.getElementById('pwInput').focus(); }, 50);
+  }
+}
+
+function submitPassword() {
+  var val = document.getElementById('pwInput').value;
+  if (val === MANAGER_PASSWORD) {
+    isUnlocked = true;
+    closeModal();
+    applyMode();
+  } else {
+    document.getElementById('pwError').textContent = 'Incorrect password. Try again.';
+    document.getElementById('pwInput').value = '';
+    document.getElementById('pwInput').focus();
+  }
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.add('hidden');
 }
 
 loadAllData();
